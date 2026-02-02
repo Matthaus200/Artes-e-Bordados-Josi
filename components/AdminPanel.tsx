@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Product, Category } from '../types';
 import { generateProductDescription } from '../services/geminiService';
-import { PlusIcon, SparklesIcon, TrashIcon, SearchIcon, EditIcon, CheckIcon } from './Icons';
+import { PlusIcon, SparklesIcon, TrashIcon, SearchIcon, EditIcon, CheckIcon, UploadIcon } from './Icons';
 
 interface AdminPanelProps {
   products: Product[];
@@ -29,6 +29,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
     description: ''
   });
   const [imageError, setImageError] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showUrlInput, setShowUrlInput] = useState(false);
 
   const handleGenerateDescription = async () => {
     if (!newProduct.name || !newProduct.category) {
@@ -46,6 +48,54 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
     setIsGenerating(false);
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecione apenas arquivos de imagem.');
+      return;
+    }
+
+    // Read and compress image
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Resize to max 800px to save space
+        const MAX_SIZE = 800;
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Convert to optimized JPEG base64
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        setNewProduct(prev => ({ ...prev, imageUrl: dataUrl }));
+        setImageError(false);
+        setShowUrlInput(false); // Hide URL input if active
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleEditClick = (product: Product) => {
     setEditingId(product.id);
     setNewProduct({
@@ -56,6 +106,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
       description: product.description
     });
     setImageError(false);
+    setShowUrlInput(false);
     // Scroll to top to see form on mobile
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -69,11 +120,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
       imageUrl: '',
       description: ''
     });
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProduct.name || !newProduct.price) return;
+
+    const finalImage = newProduct.imageUrl || `https://picsum.photos/400/400?random=${Date.now()}`;
 
     if (editingId) {
       // Update existing
@@ -82,7 +136,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
         name: newProduct.name,
         price: Number(newProduct.price),
         category: newProduct.category as Category,
-        imageUrl: newProduct.imageUrl || `https://picsum.photos/400/400?random=${Date.now()}`,
+        imageUrl: finalImage,
         description: newProduct.description || ''
       };
       onUpdateProduct(updatedProduct);
@@ -94,7 +148,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
         name: newProduct.name,
         price: Number(newProduct.price),
         category: newProduct.category as Category,
-        imageUrl: newProduct.imageUrl || `https://picsum.photos/400/400?random=${Date.now()}`,
+        imageUrl: finalImage,
         description: newProduct.description || ''
       };
       onAddProduct(product);
@@ -193,28 +247,67 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">URL da Imagem</label>
-              <input
-                type="url"
-                value={newProduct.imageUrl}
-                onChange={e => {
-                  setNewProduct({...newProduct, imageUrl: e.target.value});
-                  setImageError(false);
-                }}
-                className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none text-sm placeholder-gray-400"
-                placeholder="https://..."
-              />
-              {newProduct.imageUrl && (
-                <div className="mt-2 relative h-32 w-full rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
-                   <img 
+              <label className="block text-sm font-medium text-gray-700 mb-1">Imagem</label>
+              
+              {/* Image Upload Area */}
+              <div 
+                className="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-rose-200 rounded-lg cursor-pointer bg-rose-50/30 hover:bg-rose-50 transition-colors group overflow-hidden"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {newProduct.imageUrl ? (
+                  <>
+                    <img 
                       src={newProduct.imageUrl} 
-                      alt="Prévia" 
-                      className="w-full h-full object-cover"
+                      alt="Preview" 
+                      className="w-full h-full object-contain"
                       onError={() => setImageError(true)}
                     />
-                    {imageError && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-400 text-xs">Imagem inválida</div>
-                    )}
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-white font-medium flex items-center gap-2">
+                        <UploadIcon className="w-5 h-5" /> Trocar Imagem
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <UploadIcon className="w-10 h-10 text-rose-400 mb-3" />
+                    <p className="mb-2 text-sm text-gray-500 font-medium">Clique para enviar foto</p>
+                    <p className="text-xs text-gray-400">JPG ou PNG</p>
+                  </div>
+                )}
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  ref={fileInputRef} 
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                />
+              </div>
+
+              {/* Toggle for URL */}
+              <div className="mt-2 text-right">
+                <button
+                  type="button"
+                  onClick={() => setShowUrlInput(!showUrlInput)}
+                  className="text-xs text-gray-500 hover:text-rose-600 underline"
+                >
+                  {showUrlInput ? "Esconder opção de link" : "Usar link da internet"}
+                </button>
+              </div>
+
+              {/* URL Input (Hidden by default) */}
+              {showUrlInput && (
+                <div className="mt-2 animate-fade-in">
+                  <input
+                    type="url"
+                    value={newProduct.imageUrl}
+                    onChange={e => {
+                      setNewProduct({...newProduct, imageUrl: e.target.value});
+                      setImageError(false);
+                    }}
+                    className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none text-sm placeholder-gray-400"
+                    placeholder="https://exemplo.com/imagem.jpg"
+                  />
                 </div>
               )}
             </div>
@@ -282,7 +375,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
                     }`}
                   >
                     {/* Image Thumbnail */}
-                    <div className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
+                    <div className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden border border-gray-100">
                       <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
                     </div>
                     

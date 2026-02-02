@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Product, Category } from '../types';
 import { ProductCard } from './ProductCard';
-import { getGiftSuggestion } from '../services/geminiService';
-import { SearchIcon, SparklesIcon, WhatsappIcon, ShoppingBagIcon } from './Icons';
+import { WhatsappIcon, ShoppingBagIcon } from './Icons';
 import { WHATSAPP_NUMBER } from '../constants';
 
 interface StorefrontProps {
@@ -13,30 +12,12 @@ interface StorefrontProps {
 
 export const Storefront: React.FC<StorefrontProps> = ({ products, cart, onToggleCart }) => {
   const [selectedCategory, setSelectedCategory] = useState<Category | 'Todos'>('Todos');
-  const [aiQuery, setAiQuery] = useState('');
-  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
-  const [isSuggesting, setIsSuggesting] = useState(false);
 
   const filteredProducts = selectedCategory === 'Todos' 
     ? products 
     : products.filter(p => p.category === selectedCategory);
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
-
-  const handleAiSuggestion = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!aiQuery.trim()) return;
-
-    setIsSuggesting(true);
-    setAiSuggestion(null);
-
-    // Create a mini-context of available items for the AI
-    const productContext = products.map(p => `${p.name} (${p.category}) - R$${p.price}`).join(', ');
-    
-    const suggestion = await getGiftSuggestion(aiQuery, productContext);
-    setAiSuggestion(suggestion);
-    setIsSuggesting(false);
-  };
 
   const handleCheckout = () => {
     if (cart.length === 0) return;
@@ -54,7 +35,7 @@ export const Storefront: React.FC<StorefrontProps> = ({ products, cart, onToggle
   return (
     <div className="pb-32"> {/* Extra padding bottom for floating bar */}
       {/* Hero Section */}
-      <div className="bg-gradient-to-br from-rose-100 via-rose-50 to-orange-50 py-20 px-4 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-rose-100 via-rose-50 to-orange-50 py-20 px-4 relative overflow-hidden mb-12">
         {/* Decorative Background Elements */}
         <div className="absolute top-0 left-0 w-64 h-64 bg-rose-200/30 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-orange-100/40 rounded-full blur-3xl translate-x-1/3 translate-y-1/3"></div>
@@ -69,48 +50,6 @@ export const Storefront: React.FC<StorefrontProps> = ({ products, cart, onToggle
           <p className="text-lg md:text-xl text-gray-700 max-w-2xl mx-auto leading-relaxed">
             Transformando momentos em memórias com presentes personalizados e bolos deliciosos feitos pela Josi.
           </p>
-        </div>
-      </div>
-
-      {/* AI Assistant Section */}
-      <div className="max-w-3xl mx-auto -mt-8 px-4 relative z-20 mb-12">
-        <div className="bg-white rounded-2xl shadow-xl p-6 border border-rose-100">
-          <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-            <SparklesIcon className="text-rose-500 w-5 h-5" />
-            Precisa de ajuda para escolher um presente?
-          </h3>
-          <form onSubmit={handleAiSuggestion} className="flex flex-col sm:flex-row gap-2">
-            <input 
-              type="text"
-              value={aiQuery}
-              onChange={(e) => setAiQuery(e.target.value)}
-              placeholder="Ex: Procuro algo para uma amiga que ama chá e coisas fofas..."
-              className="flex-grow px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-rose-400 outline-none transition-all"
-            />
-            <button 
-              type="submit"
-              disabled={isSuggesting}
-              className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-3 rounded-xl font-medium transition-colors disabled:opacity-70 flex justify-center items-center shadow-md hover:shadow-lg"
-            >
-              {isSuggesting ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-white rounded-full animate-bounce"></span>
-                  <span className="w-2 h-2 bg-white rounded-full animate-bounce delay-75"></span>
-                  <span className="w-2 h-2 bg-white rounded-full animate-bounce delay-150"></span>
-                </span>
-              ) : (
-                <SearchIcon />
-              )}
-            </button>
-          </form>
-          {aiSuggestion && (
-            <div className="mt-4 p-4 bg-rose-50 rounded-xl border border-rose-100 text-gray-800 animate-fade-in">
-              <p className="font-medium text-rose-900 mb-1 flex items-center gap-2">
-                <SparklesIcon className="w-4 h-4" /> Sugestão da Josi (IA):
-              </p>
-              <p className="text-gray-700 leading-relaxed">{aiSuggestion}</p>
-            </div>
-          )}
         </div>
       </div>
 

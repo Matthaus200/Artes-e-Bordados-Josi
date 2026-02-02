@@ -41,31 +41,3 @@ export const generateProductDescription = async (
     return "Erro ao conectar com a IA. Por favor, tente novamente ou escreva manualmente.";
   }
 };
-
-export const getGiftSuggestion = async (userQuery: string, productsContext: string): Promise<string> => {
-  try {
-    const ai = getAIClient();
-    const model = "gemini-3-flash-preview";
-
-    const prompt = `
-      Você é o assistente virtual do 'Ateliê da Josi'. Ajude um cliente a escolher um presente.
-      
-      Lista de produtos disponíveis na loja:
-      ${productsContext}
-      
-      Pedido do cliente: "${userQuery}"
-      
-      Com base APENAS nos produtos disponíveis ou sugestões de personalização que a Josi pode fazer (bolos, bordados, canecas, cadernos), sugira a melhor opção. Seja simpático e breve.
-    `;
-
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-    });
-
-    return response.text || "Não consegui pensar em uma sugestão agora.";
-  } catch (error) {
-    console.error("Erro na sugestão:", error);
-    return "Desculpe, estou com dificuldades técnicas. Pode entrar em contato diretamente pelo WhatsApp?";
-  }
-};
