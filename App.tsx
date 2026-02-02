@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { INITIAL_PRODUCTS } from './constants';
+import { INITIAL_PRODUCTS, WHATSAPP_NUMBER } from './constants';
 import { Product, ViewState } from './types';
 import { AdminPanel } from './components/AdminPanel';
 import { Storefront } from './components/Storefront';
-import { LockIcon, ShoppingBagIcon, InstagramIcon } from './components/Icons';
+import { PrivacyPolicy } from './components/PrivacyPolicy';
+import { LockIcon, ShoppingBagIcon, InstagramIcon, WhatsappIcon } from './components/Icons';
 
 function App() {
   const [view, setView] = useState<ViewState>('HOME');
@@ -82,6 +83,35 @@ function App() {
     }
   };
 
+  const renderContent = () => {
+    switch (view) {
+      case 'ADMIN':
+        return (
+          <AdminPanel 
+            products={products}
+            onAddProduct={handleAddProduct}
+            onUpdateProduct={handleUpdateProduct}
+            onDeleteProduct={handleDeleteProduct}
+            onLogout={() => {
+              setIsAdminLoggedIn(false);
+              setView('HOME');
+            }}
+          />
+        );
+      case 'PRIVACY':
+        return <PrivacyPolicy />;
+      case 'HOME':
+      default:
+        return (
+          <Storefront 
+            products={products} 
+            cart={cart}
+            onToggleCart={handleToggleCart}
+          />
+        );
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col font-sans">
       {/* Navbar */}
@@ -92,7 +122,8 @@ function App() {
             className="flex items-center gap-2 text-2xl font-serif font-bold text-rose-600 hover:opacity-80 transition"
           >
             <ShoppingBagIcon className="w-8 h-8" />
-            Ateliê da Josi
+            <span className="hidden xs:inline">Ateliê da Josi</span>
+            <span className="xs:hidden">Josi Artes</span>
           </button>
 
           <div className="flex items-center gap-4">
@@ -105,10 +136,10 @@ function App() {
                 <LockIcon className="w-5 h-5" />
               </button>
             )}
-            {view === 'ADMIN' && (
+            {view !== 'HOME' && (
               <button
                 onClick={() => setView('HOME')}
-                className="text-sm font-medium text-rose-600 hover:text-rose-800"
+                className="text-sm font-medium text-rose-600 hover:text-rose-800 bg-rose-50 px-4 py-2 rounded-full transition-colors"
               >
                 Voltar para Loja
               </button>
@@ -119,54 +150,77 @@ function App() {
 
       {/* Main Content */}
       <main className="flex-grow bg-rose-50/50">
-        {view === 'HOME' ? (
-          <Storefront 
-            products={products} 
-            cart={cart}
-            onToggleCart={handleToggleCart}
-          />
-        ) : (
-          <AdminPanel 
-            products={products}
-            onAddProduct={handleAddProduct}
-            onUpdateProduct={handleUpdateProduct}
-            onDeleteProduct={handleDeleteProduct}
-            onLogout={() => {
-              setIsAdminLoggedIn(false);
-              setView('HOME');
-            }}
-          />
-        )}
+        {renderContent()}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-rose-900 text-white py-8 mt-auto">
-        <div className="container mx-auto px-4 text-center">
-          <p className="font-serif text-xl mb-2">Ateliê da Josi</p>
-          <p className="text-rose-200 text-sm mb-4">Feito com amor e carinho em cada detalhe.</p>
-          
-          <div className="flex justify-center mb-6">
-            <a 
-              href="https://instagram.com/josiartesanato81" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="flex items-center gap-2 text-rose-100 hover:text-white bg-rose-800/50 hover:bg-rose-800 px-4 py-2 rounded-full transition-all duration-300"
-            >
-              <InstagramIcon className="w-5 h-5" />
-              <span className="font-medium">@josiartesanato81</span>
-            </a>
+      {/* Professional Footer for Google Ads Compliance */}
+      <footer className="bg-rose-900 text-rose-100 pt-12 pb-6 border-t border-rose-800">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8 text-center md:text-left">
+            
+            {/* Column 1: Brand */}
+            <div>
+              <h3 className="font-serif text-2xl font-bold text-white mb-4">Josi Artes e Bordados</h3>
+              <p className="text-rose-200 text-sm leading-relaxed mb-4 max-w-xs mx-auto md:mx-0">
+                Transformando sentimentos em presentes únicos. Bordados, encadernação e mimos personalizados feitos à mão.
+              </p>
+              <div className="flex justify-center md:justify-start gap-4">
+                 <a 
+                  href="https://instagram.com/josiartesanato81" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors"
+                  aria-label="Instagram"
+                >
+                  <InstagramIcon className="w-5 h-5" />
+                </a>
+              </div>
+            </div>
+
+            {/* Column 2: Quick Links */}
+            <div>
+              <h4 className="font-bold text-white mb-4 uppercase text-sm tracking-wider">Institucional</h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <button onClick={() => setView('HOME')} className="hover:text-white transition-colors">
+                    Catálogo de Produtos
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => setView('PRIVACY')} className="hover:text-white transition-colors">
+                    Política de Privacidade
+                  </button>
+                </li>
+                <li>
+                  <button onClick={openLogin} className="hover:text-white transition-colors">
+                    Acesso Administrativo
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 3: Contact */}
+            <div>
+              <h4 className="font-bold text-white mb-4 uppercase text-sm tracking-wider">Contato</h4>
+              <ul className="space-y-3 text-sm">
+                <li className="flex items-center justify-center md:justify-start gap-2">
+                  <WhatsappIcon className="w-5 h-5 text-green-400" />
+                  <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noreferrer" className="hover:text-white">
+                    (47) 99644-4364
+                  </a>
+                </li>
+                <li className="flex items-center justify-center md:justify-start gap-2">
+                  <span className="font-bold">@</span>
+                  <a href="mailto:josifp22@gmail.com" className="hover:text-white break-all">
+                    josifp22@gmail.com
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
 
-          <div className="flex flex-col items-center gap-2">
-            <div className="text-xs text-rose-300/60">
-              &copy; {new Date().getFullYear()} Todos os direitos reservados.
-            </div>
-            <button 
-              onClick={openLogin}
-              className="text-rose-300/40 hover:text-rose-100 text-[10px] uppercase tracking-wider transition-colors"
-            >
-              Acesso Restrito (Admin)
-            </button>
+          <div className="border-t border-rose-800 pt-6 mt-6 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-rose-300">
+            <p>&copy; 2025 Josi Artes e Bordados - Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>

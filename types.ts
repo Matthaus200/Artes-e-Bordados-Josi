@@ -14,4 +14,4 @@ export interface Product {
   imageUrl: string;
 }
 
-export type ViewState = 'HOME' | 'ADMIN';
+export type ViewState = 'HOME' | 'ADMIN' | 'PRIVACY';
