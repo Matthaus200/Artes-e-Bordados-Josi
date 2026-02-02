@@ -19,7 +19,7 @@ export const generateProductDescription = async (
     const model = "gemini-3-flash-preview";
     
     const prompt = `
-      Você é um assistente criativo para o 'Ateliê da Josi', especializado em artesanato e confeitaria.
+      Você é um assistente criativo para o 'Ateliê da Josi', especializado em artesanato, bordados e papelaria personalizada.
       Escreva uma descrição atraente, carinhosa e vendedora para um novo produto.
       
       Produto: ${name}

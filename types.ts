@@ -2,7 +2,6 @@ export enum Category {
   BORDADO = 'Bordados',
   CADERNO = 'Cadernos',
   CANECA = 'Canecas',
-  BOLO = 'Bolos',
   OUTROS = 'Outros'
 }
 

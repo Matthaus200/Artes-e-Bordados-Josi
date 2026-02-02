@@ -214,7 +214,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
                 value={newProduct.name}
                 onChange={e => setNewProduct({...newProduct, name: e.target.value})}
                 className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none placeholder-gray-400"
-                placeholder="Ex: Bolo de Cenoura"
+                placeholder="Ex: Caderno A5 Personalizado"
                 required
               />
             </div>

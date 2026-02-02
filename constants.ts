@@ -2,14 +2,6 @@ import { Product, Category } from './types';
 
 export const INITIAL_PRODUCTS: Product[] = [
   {
-    id: '1',
-    name: 'Bolo de Aniversário Floral',
-    description: 'Bolo de baunilha com recheio de frutas vermelhas, decorado com flores de açúcar artesanais.',
-    price: 150.00,
-    category: Category.BOLO,
-    imageUrl: 'https://picsum.photos/400/400?random=1'
-  },
-  {
     id: '2',
     name: 'Caderno Personalizado Vintage',
     description: 'Caderno A5 com capa dura encapada em tecido floral vintage e nome bordado a mão.',

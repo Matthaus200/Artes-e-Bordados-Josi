@@ -48,7 +48,7 @@ export const Storefront: React.FC<StorefrontProps> = ({ products, cart, onToggle
             Artes e Bordados
           </h1>
           <p className="text-lg md:text-xl text-gray-700 max-w-2xl mx-auto leading-relaxed">
-            Transformando momentos em memórias com presentes personalizados e bolos deliciosos feitos pela Josi.
+            Transformando momentos em memórias com presentes personalizados, cadernos únicos e bordados delicados feitos pela Josi.
           </p>
         </div>
       </div>
