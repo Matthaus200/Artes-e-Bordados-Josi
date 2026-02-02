@@ -1,20 +1,27 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 🚀 Como colocar o site "Ateliê da Josi" na internet
 
-# Run and deploy your AI Studio app
+Parabéns! O site está pronto. Agora, para que sua mãe e os clientes possam acessar, siga estes passos simples. Recomendamos usar a **Vercel** (é grátis e muito rápido).
 
-This contains everything you need to run your app locally.
+## Opção 1: Publicar via Vercel (Recomendado)
 
-View your app in AI Studio: https://ai.studio/apps/drive/1tbQX3lxBOwjCN4Fx0GkGU_Q8iSKVknAl
+1. **Baixe o código** ou tenha ele no seu GitHub.
+2. Crie uma conta em [vercel.com](https://vercel.com/signup) (pode usar sua conta do GitHub).
+3. No painel da Vercel, clique em **"Add New..."** -> **"Project"**.
+4. Importe este repositório.
+5. A Vercel vai detectar automaticamente que é um projeto **Vite**.
+6. Clique em **Deploy**.
+7. Espere uns segundos e pronto! Você receberá um link (ex: `atelie-da-josi.vercel.app`) para mandar no WhatsApp da Josi.
 
-## Run Locally
+## Senha de Administração
 
-**Prerequisites:**  Node.js
+A senha para a Josi adicionar/remover produtos é: `Matthaus11$`
+(Você pode mudar isso no arquivo `App.tsx` se quiser).
 
+## Funcionalidades
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+- **Catálogo:** Clientes veem bolos, bordados, canecas, etc.
+- **Carrinho Inteligente:** O cliente seleciona itens e o pedido vai pronto para o WhatsApp da Josi.
+- **Painel Administrativo:** A Josi pode adicionar fotos, mudar preços e criar descrições usando Inteligência Artificial.
+- **IA:** O site sugere presentes baseados no que o cliente procura.
+
+Feito com ❤️
