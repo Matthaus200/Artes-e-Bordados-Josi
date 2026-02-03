@@ -35,7 +35,7 @@ export const Storefront: React.FC<StorefrontProps> = ({ products, cart, onToggle
   return (
     <div className="pb-32"> {/* Extra padding bottom for floating bar */}
       {/* Hero Section */}
-      <div className="bg-gradient-to-br from-rose-100 via-rose-50 to-orange-50 py-20 px-4 relative overflow-hidden mb-12">
+      <div className="bg-gradient-to-br from-rose-100 via-rose-50 to-orange-50 py-12 md:py-20 px-4 relative overflow-hidden mb-8 md:mb-12">
         {/* Decorative Background Elements */}
         <div className="absolute top-0 left-0 w-64 h-64 bg-rose-200/30 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-orange-100/40 rounded-full blur-3xl translate-x-1/3 translate-y-1/3"></div>
@@ -44,10 +44,10 @@ export const Storefront: React.FC<StorefrontProps> = ({ products, cart, onToggle
           <div className="inline-block mb-4 px-4 py-1 bg-white/60 backdrop-blur-sm rounded-full text-rose-600 text-sm font-semibold tracking-wide border border-rose-100 shadow-sm animate-fade-in">
             ✨ Feito à mão com amor
           </div>
-          <h1 className="text-4xl md:text-6xl font-serif font-bold text-rose-900 mb-6 leading-tight">
+          <h1 className="text-4xl md:text-6xl font-serif font-bold text-rose-900 mb-4 md:mb-6 leading-tight">
             Artes e Bordados
           </h1>
-          <p className="text-lg md:text-xl text-gray-700 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-base md:text-xl text-gray-700 max-w-2xl mx-auto leading-relaxed">
             Transformando momentos em memórias com presentes personalizados, cadernos únicos e bordados delicados feitos pela Josi.
           </p>
         </div>
@@ -55,14 +55,14 @@ export const Storefront: React.FC<StorefrontProps> = ({ products, cart, onToggle
 
       {/* Main Catalog */}
       <div className="container mx-auto px-4">
-        {/* Categories */}
-        <div className="flex flex-wrap justify-center gap-2 mb-10">
+        {/* Categories - Horizontal Scroll on Mobile */}
+        <div className="flex overflow-x-auto pb-4 gap-2 mb-8 md:mb-10 hide-scrollbar snap-x snap-mandatory -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap md:justify-center">
           <button
             onClick={() => setSelectedCategory('Todos')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+            className={`flex-shrink-0 snap-center px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 border whitespace-nowrap ${
               selectedCategory === 'Todos' 
-                ? 'bg-rose-600 text-white shadow-md transform scale-105' 
-                : 'bg-white text-gray-600 hover:bg-rose-50 border border-transparent hover:border-rose-100'
+                ? 'bg-rose-600 text-white shadow-md border-rose-600' 
+                : 'bg-white text-gray-600 hover:bg-rose-50 border-gray-200 hover:border-rose-200'
             }`}
           >
             Todos
@@ -71,10 +71,10 @@ export const Storefront: React.FC<StorefrontProps> = ({ products, cart, onToggle
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+              className={`flex-shrink-0 snap-center px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 border whitespace-nowrap ${
                 selectedCategory === cat 
-                  ? 'bg-rose-600 text-white shadow-md transform scale-105' 
-                  : 'bg-white text-gray-600 hover:bg-rose-50 border border-transparent hover:border-rose-100'
+                  ? 'bg-rose-600 text-white shadow-md border-rose-600' 
+                  : 'bg-white text-gray-600 hover:bg-rose-50 border-gray-200 hover:border-rose-200'
               }`}
             >
               {cat}
