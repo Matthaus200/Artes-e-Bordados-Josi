@@ -72,7 +72,11 @@ function App() {
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === 'Matthaus11$') {
+    // ATENÇÃO: esta comparação roda no navegador, então a senha vai em texto
+    // puro no arquivo publicado e qualquer visitante consegue lê-la. Isso não
+    // protege nada — serve só para a Josi não abrir o painel sem querer.
+    // A proteção de verdade entra com o Firebase Auth, que valida no servidor.
+    if (passwordInput === 'Engenharia11') {
       setIsAdminLoggedIn(true);
       setShowLoginModal(false);
       setView('ADMIN');
