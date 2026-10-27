@@ -34,22 +34,25 @@ export const Storefront: React.FC<StorefrontProps> = ({ products, cart, onToggle
 
   return (
     <div className="pb-32"> {/* Extra padding bottom for floating bar */}
-      {/* Hero Section */}
-      <div className="bg-gradient-to-br from-rose-100 via-rose-50 to-orange-50 py-12 md:py-20 px-4 relative overflow-hidden mb-8 md:mb-12">
-        {/* Decorative Background Elements */}
-        <div className="absolute top-0 left-0 w-64 h-64 bg-rose-200/30 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-orange-100/40 rounded-full blur-3xl translate-x-1/3 translate-y-1/3"></div>
-
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <div className="inline-block mb-4 px-4 py-1 bg-white/60 backdrop-blur-sm rounded-full text-rose-600 text-sm font-semibold tracking-wide border border-rose-100 shadow-sm animate-fade-in">
-            ✨ Feito à mão com amor
-          </div>
-          <h1 className="text-4xl md:text-6xl font-serif font-bold text-rose-900 mb-4 md:mb-6 leading-tight">
-            Artes e Bordados
+      {/* Hero: o selo do ateliê é o elemento central, não um ícone genérico */}
+      <div className="bg-rose-100 px-4 py-14 md:py-20 mb-10 md:mb-14">
+        <div className="max-w-2xl mx-auto text-center">
+          <img
+            src="/logo.webp"
+            alt="Selo do ateliê Josi Artes e Bordados"
+            width={176}
+            height={176}
+            className="w-36 h-36 md:w-44 md:h-44 mx-auto mb-8 rounded-full animate-fade-in"
+          />
+          <h1 className="font-serif text-4xl md:text-5xl font-semibold text-rose-900 leading-snug mb-5">
+            Bordados, cadernos e canecas feitos à mão
           </h1>
-          <p className="text-base md:text-xl text-gray-700 max-w-2xl mx-auto leading-relaxed">
-            Transformando momentos em memórias com presentes personalizados, cadernos únicos e bordados delicados feitos pela Josi.
+          <p className="text-base md:text-lg text-gray-700 leading-relaxed max-w-xl mx-auto">
+            Cada peça é personalizada com o nome, as cores e a história de quem vai
+            receber. Escolha as suas e envie o pedido pelo WhatsApp.
           </p>
+          {/* Fio dourado: eco do anel da logo e do próprio ofício */}
+          <div className="mt-10 mx-auto h-px w-28 bg-gold-500" />
         </div>
       </div>
 

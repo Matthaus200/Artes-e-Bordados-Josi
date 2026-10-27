@@ -4,7 +4,7 @@ import { Product, ViewState } from './types';
 import { AdminPanel } from './components/AdminPanel';
 import { Storefront } from './components/Storefront';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
-import { LockIcon, ShoppingBagIcon, InstagramIcon, WhatsappIcon } from './components/Icons';
+import { LockIcon, InstagramIcon, WhatsappIcon } from './components/Icons';
 
 function App() {
   const [view, setView] = useState<ViewState>('HOME');
@@ -127,13 +127,21 @@ function App() {
       {/* Navbar */}
       <nav className="bg-white border-b border-rose-100 shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex justify-between items-center">
-          <button 
+          <button
             onClick={() => setView('HOME')}
-            className="flex items-center gap-2 text-2xl font-serif font-bold text-rose-600 hover:opacity-80 transition"
+            aria-label="Josi Artes e Bordados — ir para o início"
+            className="flex items-center gap-3 hover:opacity-80 transition"
           >
-            <ShoppingBagIcon className="w-8 h-8" />
-            <span className="hidden xs:inline">Ateliê da Josi</span>
-            <span className="xs:hidden">Josi Artes</span>
+            <img
+              src="/logo.webp"
+              alt=""
+              width={40}
+              height={40}
+              className="w-10 h-10 rounded-full flex-shrink-0 ring-1 ring-gold-300"
+            />
+            <span className="font-serif text-xl md:text-2xl font-semibold text-rose-700 leading-none">
+              Josi<span className="hidden xs:inline"> Artes &amp; Bordados</span>
+            </span>
           </button>
 
           <div className="flex items-center gap-4">
@@ -164,13 +172,20 @@ function App() {
       </main>
 
       {/* Professional Footer for Google Ads Compliance */}
-      <footer className="bg-rose-900 text-rose-100 pt-12 pb-6 border-t border-rose-800">
+      <footer className="bg-rose-900 text-rose-100 pt-12 pb-6 border-t-2 border-gold-500">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8 text-center md:text-left">
             
             {/* Column 1: Brand */}
             <div>
-              <h3 className="font-serif text-2xl font-bold text-white mb-4">Josi Artes e Bordados</h3>
+              <img
+                src="/logo.webp"
+                alt=""
+                width={64}
+                height={64}
+                className="w-16 h-16 rounded-full mb-4 mx-auto md:mx-0 ring-1 ring-gold-400"
+              />
+              <h3 className="font-serif text-2xl font-semibold text-gold-300 mb-4">Josi Artes e Bordados</h3>
               <p className="text-rose-200 text-sm leading-relaxed mb-4 max-w-xs mx-auto md:mx-0">
                 Transformando sentimentos em presentes únicos. Bordados, encadernação e mimos personalizados feitos à mão.
               </p>

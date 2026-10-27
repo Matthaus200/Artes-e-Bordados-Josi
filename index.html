@@ -7,13 +7,15 @@
     <!-- SEO & Identity -->
     <title>Josi Artes e Bordados</title>
     <meta name="description" content="Bordados à mão, cadernos encapados, canecas e presentes únicos feitos com amor pela Josi." />
-    <meta name="theme-color" content="#e11d48" />
+    <meta name="theme-color" content="#c98e84" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
 
     <!-- Open Graph / WhatsApp Sharing -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Josi Artes e Bordados" />
     <meta property="og:description" content="Venha conhecer meus bordados, cadernos e presentes personalizados. Tudo feito à mão com muito carinho! ❤️" />
-    <meta property="og:image" content="https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?q=80&w=1200&auto=format&fit=crop" />
+    <meta property="og:image" content="https://josiartesebordados.com.br/logo.png" />
     <meta property="og:url" content="https://josiartesebordados.com.br" />
 
     <!-- Tailwind CSS -->
@@ -21,24 +23,71 @@
     <script>
       tailwind.config = {
         theme: {
+          // 'xs' nao existe no Tailwind por padrao. Sem esta linha, classes como
+          // `hidden xs:inline` nunca geram CSS: o nome do atelie no topo e o total
+          // do pedido na barra flutuante ficavam invisiveis em qualquer tela.
+          screens: {
+            xs: '400px',
+            sm: '640px',
+            md: '768px',
+            lg: '1024px',
+            xl: '1280px',
+            '2xl': '1536px',
+          },
           extend: {
             colors: {
+              // Paleta tirada dos pixels da logo do atelie: rose #c98e84, dourado #f6c87f.
+              // rose-500 e o rose exato da logo e serve como SUPERFICIE.
+              // rose-600 e escurecido de proposito: branco sobre ele da 5,3:1 e passa
+              // no WCAG AA. Com o rose da logo daria 2,7:1, bonito e ilegivel.
               rose: {
-                50: '#fff1f2',
-                100: '#ffe4e6',
-                200: '#fecdd3',
-                300: '#fda4af',
-                400: '#fb7185',
-                500: '#f43f5e',
-                600: '#e11d48',
-                700: '#be123c',
-                800: '#9f1239',
-                900: '#881337',
+                50: '#fdf9f7',
+                100: '#f8ede9',
+                200: '#f0d9d2',
+                300: '#e2bcb2',
+                400: '#d5a79c',
+                500: '#c98e84',
+                600: '#985b51',
+                700: '#7b4a43',
+                800: '#6b4039',
+                900: '#5e3934',
+              },
+              // Dourado da logo. Passa com folga sobre o rodape escuro (6,4:1);
+              // sobre fundo claro so entra como fio e detalhe, nunca texto pequeno.
+              gold: {
+                200: '#fbe3bb',
+                300: '#f6c87f',
+                400: '#e9b263',
+                500: '#d9a253',
+                600: '#bd8a42',
+                700: '#a87a38',
+              },
+              // Neutros quentes. Os cinzas frios do Tailwind brigavam com o rose.
+              gray: {
+                50: '#faf7f6',
+                100: '#f2edeb',
+                200: '#e6dedb',
+                300: '#d3c8c4',
+                400: '#a89792',
+                500: '#776059',
+                600: '#5e4d48',
+                700: '#4a3c38',
+                800: '#3b2f2c',
+                900: '#2e2422',
+              },
+              // Modo de edicao do painel, agora no dourado da marca.
+              amber: {
+                50: '#fdf6e9',
+                200: '#f6e2bb',
+                400: '#e9b263',
+                600: '#bd8a42',
+                700: '#a87a38',
+                800: '#8a6330',
               },
             },
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              serif: ['Playfair Display', 'serif'],
+              sans: ['Karla', 'system-ui', 'sans-serif'],
+              serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
             },
             animation: {
               'fade-in': 'fadeIn 0.3s ease-out',
@@ -58,7 +107,9 @@
         }
       }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
   </head>
   <body class="bg-rose-50 text-gray-800 antialiased selection:bg-rose-200 selection:text-rose-900">
     <div id="root"></div>
