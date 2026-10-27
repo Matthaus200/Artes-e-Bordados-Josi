@@ -27,10 +27,20 @@ function App() {
     }
   }, []);
 
-  // Save to local storage whenever products change
+  // Save to local storage whenever products change.
+  // TEMPORÁRIO: será substituído pelo Firestore. Enquanto as fotos vão para o
+  // localStorage em base64, o limite de ~5 MB do navegador pode estourar — e sem
+  // este try/catch a Josi perderia o produto recém-cadastrado sem nenhum aviso.
   useEffect(() => {
-    // Removed the check for length > 0 so we can save empty lists too
-    localStorage.setItem('josi_products', JSON.stringify(products));
+    try {
+      localStorage.setItem('josi_products', JSON.stringify(products));
+    } catch (err) {
+      console.error('Falha ao salvar produtos no localStorage:', err);
+      alert(
+        'Não foi possível salvar o produto: o armazenamento do navegador está cheio.\n\n' +
+        'As fotos são o que ocupa espaço. Remova algum produto antigo antes de cadastrar outro.'
+      );
+    }
   }, [products]);
 
   const handleAddProduct = (newProduct: Product) => {
@@ -220,7 +230,7 @@ function App() {
           </div>
 
           <div className="border-t border-rose-800 pt-6 mt-6 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-rose-300">
-            <p>&copy; 2025 Josi Artes e Bordados - Todos os direitos reservados.</p>
+            <p>&copy; {new Date().getFullYear()} Josi Artes e Bordados - Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>

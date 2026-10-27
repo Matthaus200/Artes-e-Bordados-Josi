@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Product, Category } from '../types';
-import { generateProductDescription } from '../services/geminiService';
-import { PlusIcon, SparklesIcon, TrashIcon, SearchIcon, EditIcon, CheckIcon, UploadIcon } from './Icons';
+import { PlusIcon, TrashIcon, SearchIcon, EditIcon, CheckIcon, UploadIcon } from './Icons';
 
 interface AdminPanelProps {
   products: Product[];
@@ -12,7 +11,6 @@ interface AdminPanelProps {
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, onUpdateProduct, onDeleteProduct, onLogout }) => {
-  const [isGenerating, setIsGenerating] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
   // Edit mode state
@@ -31,22 +29,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
   const [imageError, setImageError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showUrlInput, setShowUrlInput] = useState(false);
-
-  const handleGenerateDescription = async () => {
-    if (!newProduct.name || !newProduct.category) {
-      alert("Por favor, preencha o nome e a categoria antes de gerar a descrição.");
-      return;
-    }
-    
-    setIsGenerating(true);
-    const desc = await generateProductDescription(
-      newProduct.name, 
-      newProduct.category, 
-      newProduct.description || "Feito com amor."
-    );
-    setNewProduct(prev => ({ ...prev, description: desc }));
-    setIsGenerating(false);
-  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -313,18 +295,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
             </div>
 
             <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="block text-sm font-medium text-gray-700">Descrição</label>
-                <button
-                  type="button"
-                  onClick={handleGenerateDescription}
-                  disabled={isGenerating}
-                  className="text-xs flex items-center gap-1 text-rose-600 font-bold hover:text-rose-800 disabled:opacity-50 px-2 py-1"
-                >
-                  <SparklesIcon className="w-3 h-3" />
-                  {isGenerating ? 'Criando...' : 'Criar com IA'}
-                </button>
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
               <textarea
                 value={newProduct.description}
                 onChange={e => setNewProduct({...newProduct, description: e.target.value})}
