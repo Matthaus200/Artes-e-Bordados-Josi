@@ -27,3 +27,9 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# Lockfile: este projeto e desenvolvido no Windows e publicado em Linux (Vercel).
+# Um lockfile commitado de um dos dois fixa dependencias nativas opcionais do
+# sistema errado para o outro (npm/cli#4828, que quebrou o rollup aqui).
+# Gerar um lockfile correto exigiria faze-lo no mesmo SO do build.
+package-lock.json
