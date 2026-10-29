@@ -1,10 +1,15 @@
 import {
+  getAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
   type User,
 } from 'firebase/auth';
-import { auth } from './firebase';
+import { app } from './firebase';
+
+// getAuth fica aqui, e não em firebase.ts, para que o SDK de autenticação só
+// entre no pacote de quem realmente abre o painel.
+const auth = getAuth(app);
 
 /**
  * Autenticação da área administrativa.

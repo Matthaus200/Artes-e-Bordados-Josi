@@ -2,12 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { WHATSAPP_NUMBER } from './constants';
 import { Product, ViewState } from './types';
 import { observarProdutos, adicionarProduto, atualizarProduto, removerProduto } from './services/productService';
-import { observarLogin, entrar, sair, mensagemDeErro } from './services/authService';
 import { firebaseConfigurado } from './services/firebase';
-import { AdminPanel } from './components/AdminPanel';
 import { Storefront } from './components/Storefront';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { LockIcon, InstagramIcon, WhatsappIcon } from './components/Icons';
+
+// O painel só é baixado quando a Josi entra nele. Para as clientes, que são a
+// quase totalidade das visitas, esse código nunca chega ao navegador.
+const AdminPanel = React.lazy(() =>
+  import('./components/AdminPanel').then((m) => ({ default: m.AdminPanel }))
+);
+
+/**
+ * O SDK de autenticação do Firebase é pesado e só serve ao painel. Em vez de
+ * importá-lo no topo, carregamos sob demanda e guardamos a promessa para não
+ * baixar duas vezes.
+ */
+let promessaAuth: Promise<typeof import('./services/authService')> | null = null;
+const carregarAuth = () => (promessaAuth ??= import('./services/authService'));
+
+/**
+ * Pista local de que existe sessão a restaurar. NÃO é controle de acesso —
+ * quem decide se ela está autenticada é o Firebase, no servidor. Serve só para
+ * não baixar o SDK de login no navegador de quem nunca fez login.
+ */
+const DICA_ADMIN = 'josi_admin';
 
 function App() {
   const [view, setView] = useState<ViewState>('HOME');
@@ -58,19 +77,49 @@ function App() {
     return cancelar; // sem isto o listener sobrevive ao desmonte e segue gastando leituras
   }, []);
 
+  const cancelarObservador = React.useRef<(() => void) | null>(null);
+
   /**
-   * Estado de login vindo do Firebase. Ele restaura a sessão sozinho, então a
-   * Josi não precisa digitar a senha a cada visita.
+   * Assina o estado de login do Firebase, carregando o SDK na hora. Idempotente:
+   * chamar de novo não cria um segundo observador.
    */
-  useEffect(() => {
-    if (!firebaseConfigurado) return;
-    return observarLogin((usuario) => {
+  const iniciarObservadorDeLogin = React.useCallback(async () => {
+    if (cancelarObservador.current) return;
+    const { observarLogin } = await carregarAuth();
+    cancelarObservador.current = observarLogin((usuario) => {
       setIsAdminLoggedIn(Boolean(usuario));
+      try {
+        if (usuario) localStorage.setItem(DICA_ADMIN, '1');
+        else localStorage.removeItem(DICA_ADMIN);
+      } catch {
+        // Navegador sem localStorage disponível: só perde a restauração de sessão.
+      }
       // Se a sessão caiu ou expirou enquanto ela estava no painel, não deixa a
       // tela administrativa aberta.
       if (!usuario) setView((atual) => (atual === 'ADMIN' ? 'HOME' : atual));
     });
   }, []);
+
+  /**
+   * Na carga da página, só vale a pena acordar a autenticação se houver indício
+   * de que existe sessão. É o que mantém o SDK de login fora do pacote das
+   * clientes.
+   */
+  useEffect(() => {
+    if (!firebaseConfigurado) return;
+    let temDica = false;
+    try {
+      temDica = localStorage.getItem(DICA_ADMIN) === '1';
+    } catch {
+      temDica = false;
+    }
+    if (temDica) iniciarObservadorDeLogin();
+
+    return () => {
+      cancelarObservador.current?.();
+      cancelarObservador.current = null;
+    };
+  }, [iniciarObservadorDeLogin]);
 
   // As três funções abaixo apenas gravam. Quem atualiza a lista na tela é o
   // onSnapshot acima — por isso elas não mexem em setProducts.
@@ -108,20 +157,28 @@ function App() {
     setEntrando(true);
     setLoginError(null);
     try {
-      await entrar(emailInput.trim(), passwordInput);
-      setShowLoginModal(false);
-      setView('ADMIN');
-      setEmailInput('');
-      setPasswordInput('');
-    } catch (erro) {
-      setLoginError(mensagemDeErro(erro));
-      setPasswordInput('');
+      const auth = await carregarAuth();
+      try {
+        await auth.entrar(emailInput.trim(), passwordInput);
+        await iniciarObservadorDeLogin();
+        setShowLoginModal(false);
+        setView('ADMIN');
+        setEmailInput('');
+        setPasswordInput('');
+      } catch (erro) {
+        setLoginError(auth.mensagemDeErro(erro));
+        setPasswordInput('');
+      }
+    } catch {
+      // Falha ao baixar o próprio módulo de login — quase sempre rede.
+      setLoginError('Não foi possível carregar o login. Verifique a internet.');
     } finally {
       setEntrando(false);
     }
   };
 
   const handleLogout = async () => {
+    const { sair } = await carregarAuth();
     await sair();
     setView('HOME');
   };
@@ -140,13 +197,21 @@ function App() {
     switch (view) {
       case 'ADMIN':
         return (
-          <AdminPanel 
-            products={products}
-            onAddProduct={handleAddProduct}
-            onUpdateProduct={handleUpdateProduct}
-            onDeleteProduct={handleDeleteProduct}
-            onLogout={handleLogout}
-          />
+          <React.Suspense
+            fallback={
+              <div className="container mx-auto px-4 py-24 text-center text-gray-500">
+                Abrindo o painel...
+              </div>
+            }
+          >
+            <AdminPanel
+              products={products}
+              onAddProduct={handleAddProduct}
+              onUpdateProduct={handleUpdateProduct}
+              onDeleteProduct={handleDeleteProduct}
+              onLogout={handleLogout}
+            />
+          </React.Suspense>
         );
       case 'PRIVACY':
         return <PrivacyPolicy />;

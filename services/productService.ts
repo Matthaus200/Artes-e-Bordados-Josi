@@ -93,37 +93,5 @@ export async function removerProduto(id: string): Promise<void> {
   await deleteDoc(doc(db, COLECAO, id));
 }
 
-/**
- * Importa, uma única vez, os produtos que ficaram presos no localStorage.
- *
- * Sem isto a Josi abriria o site novo com o catálogo vazio e teria que digitar
- * tudo de novo. Só roda quando o Firestore está vazio E existe algo salvo no
- * navegador — nos outros casos não aparece nem como opção.
- */
-export function produtosGuardadosNoNavegador(): Product[] {
-  try {
-    const bruto = localStorage.getItem('josi_products');
-    if (!bruto) return [];
-    const lista = JSON.parse(bruto);
-    return Array.isArray(lista) ? lista : [];
-  } catch {
-    return [];
-  }
-}
-
-export async function importarDoNavegador(produtos: Product[]): Promise<number> {
-  let importados = 0;
-  // Sequencial de propósito: são poucas dezenas de itens, e em caso de falha no
-  // meio o que já entrou está salvo, em vez de um lote inteiro perdido.
-  for (const p of produtos) {
-    await adicionarProduto({
-      name: p.name,
-      description: p.description,
-      price: p.price,
-      category: p.category,
-      imageUrl: p.imageUrl,
-    });
-    importados++;
-  }
-  return importados;
-}
+// Havia aqui uma importação dos produtos presos no localStorage. Removida:
+// a Josi ainda não tinha catálogo cadastrado, então não havia nada a migrar.

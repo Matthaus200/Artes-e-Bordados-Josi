@@ -1,5 +1,4 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 /**
@@ -42,7 +41,12 @@ if (!firebaseConfigurado) {
   );
 }
 
-const app = initializeApp(firebaseConfig);
+export const app = initializeApp(firebaseConfig);
 
-export const auth = getAuth(app);
+/**
+ * Só o Firestore sai daqui. O módulo de autenticação fica em authService.ts,
+ * que é carregado sob demanda: quem abre a vitrine é cliente, não precisa
+ * baixar o código de login que só a Josi usa. Importar getAuth aqui jogaria
+ * esse peso em todo mundo.
+ */
 export const db = getFirestore(app);
