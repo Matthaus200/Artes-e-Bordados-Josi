@@ -4,14 +4,21 @@ import { PlusIcon, TrashIcon, SearchIcon, EditIcon, CheckIcon, UploadIcon } from
 
 interface AdminPanelProps {
   products: Product[];
-  onAddProduct: (product: Product) => void;
-  onUpdateProduct: (product: Product) => void;
-  onDeleteProduct: (id: string) => void;
+  // Assíncronas porque agora gravam no Firestore, pela rede. Quem cria o id de
+  // um produto novo é o banco, por isso o 'id' sai do que o formulário envia.
+  onAddProduct: (product: Omit<Product, 'id'>) => Promise<void>;
+  onUpdateProduct: (product: Product) => Promise<void>;
+  onDeleteProduct: (id: string) => Promise<void>;
   onLogout: () => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, onUpdateProduct, onDeleteProduct, onLogout }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const [removendo, setRemovendo] = useState(false);
+  // Antes o retorno era um alert() de sucesso. Como a gravação agora passa pela
+  // rede e pode falhar, o painel precisa mostrar o erro em vez de fingir que deu certo.
+  const [aviso, setAviso] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
   
   // Edit mode state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -105,46 +112,59 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProduct.name || !newProduct.price) return;
+    if (!newProduct.name || !newProduct.price || salvando) return;
 
     const finalImage = newProduct.imageUrl || `https://picsum.photos/400/400?random=${Date.now()}`;
 
-    if (editingId) {
-      // Update existing
-      const updatedProduct: Product = {
-        id: editingId,
-        name: newProduct.name,
-        price: Number(newProduct.price),
-        category: newProduct.category as Category,
-        imageUrl: finalImage,
-        description: newProduct.description || ''
-      };
-      onUpdateProduct(updatedProduct);
-      alert("Produto atualizado com sucesso!");
-    } else {
-      // Create new
-      const product: Product = {
-        id: Date.now().toString(),
-        name: newProduct.name,
-        price: Number(newProduct.price),
-        category: newProduct.category as Category,
-        imageUrl: finalImage,
-        description: newProduct.description || ''
-      };
-      onAddProduct(product);
-      alert("Produto adicionado com sucesso!");
-    }
+    const dados = {
+      name: newProduct.name,
+      price: Number(newProduct.price),
+      category: newProduct.category as Category,
+      imageUrl: finalImage,
+      description: newProduct.description || '',
+    };
 
-    // Reset form
-    handleCancelEdit();
+    setSalvando(true);
+    setAviso(null);
+    try {
+      if (editingId) {
+        await onUpdateProduct({ id: editingId, ...dados });
+        setAviso({ tipo: 'ok', texto: 'Produto atualizado.' });
+      } else {
+        await onAddProduct(dados);
+        setAviso({ tipo: 'ok', texto: 'Produto adicionado. Já está no ar para as clientes.' });
+      }
+      handleCancelEdit();
+    } catch (erro) {
+      console.error('[Admin] Falha ao salvar produto:', erro);
+      // O formulário NÃO é limpo aqui de propósito: ela não perde o que digitou
+      // e pode tentar de novo sem refazer tudo.
+      setAviso({
+        tipo: 'erro',
+        texto: 'Não foi possível salvar. Verifique a internet e tente de novo.',
+      });
+    } finally {
+      setSalvando(false);
+    }
   };
 
-  const confirmDelete = () => {
-    if (productToDelete) {
-      onDeleteProduct(productToDelete.id);
+  const confirmDelete = async () => {
+    if (!productToDelete || removendo) return;
+
+    setRemovendo(true);
+    setAviso(null);
+    try {
+      await onDeleteProduct(productToDelete.id);
       setProductToDelete(null);
+      setAviso({ tipo: 'ok', texto: 'Produto removido.' });
+    } catch (erro) {
+      console.error('[Admin] Falha ao remover produto:', erro);
+      setProductToDelete(null);
+      setAviso({ tipo: 'erro', texto: 'Não foi possível remover. Tente de novo.' });
+    } finally {
+      setRemovendo(false);
     }
   };
 
@@ -161,13 +181,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
           <h2 className="text-2xl md:text-3xl font-serif text-rose-900">Painel da Josi</h2>
           <p className="text-rose-600 text-sm md:text-base">Adicione novos itens, edite ou remova os antigos.</p>
         </div>
-        <button 
-          onClick={onLogout} 
+        <button
+          onClick={onLogout}
           className="w-full md:w-auto px-4 py-3 md:py-2 text-sm font-medium text-rose-700 bg-white border border-rose-200 hover:bg-rose-50 rounded-lg transition-colors shadow-sm"
         >
           Sair do Painel
         </button>
       </div>
+
+      {aviso && (
+        <div
+          role="status"
+          className={`mb-6 flex items-start justify-between gap-4 rounded-xl border px-4 py-3 text-sm ${
+            aviso.tipo === 'ok'
+              ? 'bg-rose-50 border-rose-200 text-rose-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}
+        >
+          <span>{aviso.texto}</span>
+          <button
+            type="button"
+            onClick={() => setAviso(null)}
+            className="font-medium underline underline-offset-2 hover:opacity-70"
+          >
+            Fechar
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         
@@ -306,12 +346,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
 
             <button
               type="submit"
-              className={`w-full text-white py-3.5 md:py-3 rounded-lg font-bold transition shadow-md flex justify-center items-center gap-2 ${
+              disabled={salvando}
+              className={`w-full text-white py-3.5 md:py-3 rounded-lg font-bold transition shadow-md flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${
                 editingId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-rose-600 hover:bg-rose-700'
               }`}
             >
-              {editingId ? <CheckIcon className="w-5 h-5" /> : <PlusIcon className="w-5 h-5" />}
-              {editingId ? 'Salvar Alterações' : 'Adicionar Produto'}
+              {!salvando && (editingId ? <CheckIcon className="w-5 h-5" /> : <PlusIcon className="w-5 h-5" />)}
+              {salvando ? 'Salvando...' : editingId ? 'Salvar Alterações' : 'Adicionar Produto'}
             </button>
           </form>
         </div>
@@ -420,12 +461,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
               >
                 Cancelar
               </button>
-              <button 
+              <button
                 onClick={confirmDelete}
-                className="flex-1 px-4 py-3 md:py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition text-sm font-medium shadow-md flex items-center justify-center gap-2"
+                disabled={removendo}
+                className="flex-1 px-4 py-3 md:py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition text-sm font-medium shadow-md flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <TrashIcon className="w-4 h-4" />
-                Sim, Excluir
+                {!removendo && <TrashIcon className="w-4 h-4" />}
+                {removendo ? 'Removendo...' : 'Sim, Excluir'}
               </button>
             </div>
           </div>

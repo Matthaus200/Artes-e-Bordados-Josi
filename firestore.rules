@@ -1,0 +1,58 @@
+rules_version = '2';
+
+// Regras de segurança do Firestore — Josi Artes e Bordados
+//
+// Isto roda no servidor do Google, não no navegador. É a única coisa que
+// realmente protege o catálogo: o cliente pode ser modificado à vontade,
+// as regras não.
+//
+// COMO PUBLICAR: console do Firebase > Firestore Database > aba "Regras",
+// cola este conteúdo e clica em Publicar. O arquivo aqui no repositório é a
+// fonte da verdade; o console é só onde ele passa a valer.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Quem pode escrever no catálogo.
+    //
+    // Checar `request.auth != null` sozinho significaria "qualquer pessoa
+    // autenticada no projeto". Hoje só existe uma conta, mas se um dia alguém
+    // ligar o login com Google no console, qualquer pessoa com conta Google
+    // passaria a poder editar o catálogo. Amarrar ao e-mail fecha isso.
+    //
+    // Para trocar o e-mail da administradora, altere a linha abaixo e publique
+    // de novo. Para ter mais de uma, use: request.auth.token.email in ['a@x', 'b@y']
+    function ehAdministradora() {
+      return request.auth != null
+          && request.auth.token.email == 'josifp22@gmail.com';
+    }
+
+    // Impede que um cliente comprometido grave lixo ou um documento gigante.
+    // O limite de 1,5 MB existe porque a imagem ainda pode vir em base64
+    // enquanto o upload externo não entra; o teto do Firestore é 1 MiB por
+    // documento, então o excesso falha aqui com erro claro em vez de lá.
+    function produtoValido() {
+      let d = request.resource.data;
+      return d.name is string && d.name.size() > 0 && d.name.size() <= 200
+          && d.description is string && d.description.size() <= 2000
+          && d.price is number && d.price >= 0 && d.price <= 1000000
+          && d.category is string && d.category.size() <= 50
+          && d.imageUrl is string;
+    }
+
+    match /produtos/{produtoId} {
+      // O catálogo é uma vitrine: qualquer visitante lê, e é isso que queremos.
+      allow read: if true;
+
+      allow create: if ehAdministradora() && produtoValido();
+      allow update: if ehAdministradora() && produtoValido();
+      allow delete: if ehAdministradora();
+    }
+
+    // Tudo o que não foi liberado acima fica bloqueado, inclusive coleções que
+    // venham a existir depois. Negar por padrão, liberar por exceção.
+    match /{documento=**} {
+      allow read, write: if false;
+    }
+  }
+}

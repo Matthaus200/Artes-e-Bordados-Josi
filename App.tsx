@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { INITIAL_PRODUCTS, WHATSAPP_NUMBER } from './constants';
+import { WHATSAPP_NUMBER } from './constants';
 import { Product, ViewState } from './types';
+import { observarProdutos, adicionarProduto, atualizarProduto, removerProduto } from './services/productService';
+import { observarLogin, entrar, sair, mensagemDeErro } from './services/authService';
+import { firebaseConfigurado } from './services/firebase';
 import { AdminPanel } from './components/AdminPanel';
 import { Storefront } from './components/Storefront';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
@@ -10,53 +13,77 @@ function App() {
   const [view, setView] = useState<ViewState>('HOME');
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<Product[]>([]);
-  
-  // Login states
+  const [carregando, setCarregando] = useState(true);
+  const [erroCatalogo, setErroCatalogo] = useState<string | null>(null);
+
+  // Login
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
-  const [loginError, setLoginError] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [entrando, setEntrando] = useState(false);
 
-  // Load products from local storage or constants
+  /**
+   * Catálogo em tempo real, vindo do Firestore.
+   * Antes isto era localStorage, o que mantinha os produtos presos ao navegador
+   * da Josi: as clientes nunca viam o que ela cadastrava.
+   */
   useEffect(() => {
-    const savedProducts = localStorage.getItem('josi_products');
-    if (savedProducts) {
-      setProducts(JSON.parse(savedProducts));
-    } else {
-      setProducts(INITIAL_PRODUCTS);
+    if (!firebaseConfigurado) {
+      setCarregando(false);
+      setErroCatalogo('O site não está conectado ao banco de dados.');
+      return;
     }
+
+    const cancelar = observarProdutos(
+      (lista) => {
+        setProducts(lista);
+        setErroCatalogo(null);
+        setCarregando(false);
+        // Mantém o carrinho coerente com o catálogo: atualiza preço e nome dos
+        // itens escolhidos e descarta os que a Josi tiver removido.
+        setCart((anterior) =>
+          anterior
+            .map((item) => lista.find((p) => p.id === item.id))
+            .filter((p): p is Product => Boolean(p))
+        );
+      },
+      () => {
+        setCarregando(false);
+        setErroCatalogo('Não foi possível carregar os produtos.');
+      }
+    );
+
+    return cancelar; // sem isto o listener sobrevive ao desmonte e segue gastando leituras
   }, []);
 
-  // Save to local storage whenever products change.
-  // TEMPORÁRIO: será substituído pelo Firestore. Enquanto as fotos vão para o
-  // localStorage em base64, o limite de ~5 MB do navegador pode estourar — e sem
-  // este try/catch a Josi perderia o produto recém-cadastrado sem nenhum aviso.
+  /**
+   * Estado de login vindo do Firebase. Ele restaura a sessão sozinho, então a
+   * Josi não precisa digitar a senha a cada visita.
+   */
   useEffect(() => {
-    try {
-      localStorage.setItem('josi_products', JSON.stringify(products));
-    } catch (err) {
-      console.error('Falha ao salvar produtos no localStorage:', err);
-      alert(
-        'Não foi possível salvar o produto: o armazenamento do navegador está cheio.\n\n' +
-        'As fotos são o que ocupa espaço. Remova algum produto antigo antes de cadastrar outro.'
-      );
-    }
-  }, [products]);
+    if (!firebaseConfigurado) return;
+    return observarLogin((usuario) => {
+      setIsAdminLoggedIn(Boolean(usuario));
+      // Se a sessão caiu ou expirou enquanto ela estava no painel, não deixa a
+      // tela administrativa aberta.
+      if (!usuario) setView((atual) => (atual === 'ADMIN' ? 'HOME' : atual));
+    });
+  }, []);
 
-  const handleAddProduct = (newProduct: Product) => {
-    setProducts(prev => [newProduct, ...prev]);
+  // As três funções abaixo apenas gravam. Quem atualiza a lista na tela é o
+  // onSnapshot acima — por isso elas não mexem em setProducts.
+  const handleAddProduct = async (novo: Omit<Product, 'id'>) => {
+    await adicionarProduto(novo);
   };
 
-  const handleUpdateProduct = (updatedProduct: Product) => {
-    setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-    // Also update cart if the item is in there to reflect price/name changes
-    setCart(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+  const handleUpdateProduct = async (produto: Product) => {
+    await atualizarProduto(produto);
   };
 
-  const handleDeleteProduct = (id: string) => {
-    // Confirmation is now handled in AdminPanel for better UI feedback
-    setProducts(prev => prev.filter(p => p.id !== id));
-    setCart(prev => prev.filter(p => p.id !== id));
+  const handleDeleteProduct = async (id: string) => {
+    await removerProduto(id);
   };
 
   const handleToggleCart = (product: Product) => {
@@ -70,21 +97,33 @@ function App() {
     });
   };
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  /**
+   * Login de verdade: quem confere a senha é o servidor do Firebase. Nenhuma
+   * senha existe neste arquivo nem no bundle publicado.
+   */
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // ATENÇÃO: esta comparação roda no navegador, então a senha vai em texto
-    // puro no arquivo publicado e qualquer visitante consegue lê-la. Isso não
-    // protege nada — serve só para a Josi não abrir o painel sem querer.
-    // A proteção de verdade entra com o Firebase Auth, que valida no servidor.
-    if (passwordInput === 'Engenharia11') {
-      setIsAdminLoggedIn(true);
+    if (entrando) return;
+
+    setEntrando(true);
+    setLoginError(null);
+    try {
+      await entrar(emailInput.trim(), passwordInput);
       setShowLoginModal(false);
       setView('ADMIN');
+      setEmailInput('');
       setPasswordInput('');
-      setLoginError(false);
-    } else {
-      setLoginError(true);
+    } catch (erro) {
+      setLoginError(mensagemDeErro(erro));
+      setPasswordInput('');
+    } finally {
+      setEntrando(false);
     }
+  };
+
+  const handleLogout = async () => {
+    await sair();
+    setView('HOME');
   };
 
   const openLogin = () => {
@@ -92,7 +131,7 @@ function App() {
       setView('ADMIN');
     } else {
       setShowLoginModal(true);
-      setLoginError(false);
+      setLoginError(null);
       setPasswordInput('');
     }
   };
@@ -106,19 +145,36 @@ function App() {
             onAddProduct={handleAddProduct}
             onUpdateProduct={handleUpdateProduct}
             onDeleteProduct={handleDeleteProduct}
-            onLogout={() => {
-              setIsAdminLoggedIn(false);
-              setView('HOME');
-            }}
+            onLogout={handleLogout}
           />
         );
       case 'PRIVACY':
         return <PrivacyPolicy />;
       case 'HOME':
       default:
+        // O catálogo agora vem pela rede, então existem dois estados que antes
+        // não existiam: ainda carregando, e falhou. Sem tratá-los, a cliente
+        // via uma vitrine vazia e concluía que a Josi não tem produtos.
+        if (carregando) {
+          return (
+            <div className="container mx-auto px-4 py-24 text-center text-gray-500">
+              Carregando o catálogo...
+            </div>
+          );
+        }
+        if (erroCatalogo) {
+          return (
+            <div className="container mx-auto px-4 py-24 text-center">
+              <p className="text-gray-800 mb-2">{erroCatalogo}</p>
+              <p className="text-gray-500 text-sm">
+                Tente recarregar a página. Se continuar, fale com a Josi pelo WhatsApp no rodapé.
+              </p>
+            </div>
+          );
+        }
         return (
-          <Storefront 
-            products={products} 
+          <Storefront
+            products={products}
             cart={cart}
             onToggleCart={handleToggleCart}
           />
@@ -259,40 +315,59 @@ function App() {
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
             <h3 className="text-xl font-serif font-bold text-rose-900 mb-2">Olá, Josi! ❤️</h3>
-            <p className="text-gray-500 text-sm mb-6">Digite sua senha para gerenciar seus produtos.</p>
-            
+            <p className="text-gray-500 text-sm mb-6">Entre com seu e-mail e senha para gerenciar seus produtos.</p>
+
             <form onSubmit={handleLoginSubmit} className="space-y-4">
+              <div>
+                <input
+                  type="email"
+                  value={emailInput}
+                  onChange={e => setEmailInput(e.target.value)}
+                  className={`w-full px-4 py-3 border rounded-lg outline-none focus:ring-2 transition ${
+                    loginError
+                      ? 'border-red-300 focus:ring-red-200 bg-red-50'
+                      : 'border-gray-200 focus:ring-rose-200 bg-gray-50'
+                  }`}
+                  placeholder="E-mail"
+                  autoComplete="username"
+                  required
+                  autoFocus
+                />
+              </div>
+
               <div>
                 <input
                   type="password"
                   value={passwordInput}
                   onChange={e => setPasswordInput(e.target.value)}
                   className={`w-full px-4 py-3 border rounded-lg outline-none focus:ring-2 transition ${
-                    loginError 
-                      ? 'border-red-300 focus:ring-red-200 bg-red-50' 
+                    loginError
+                      ? 'border-red-300 focus:ring-red-200 bg-red-50'
                       : 'border-gray-200 focus:ring-rose-200 bg-gray-50'
                   }`}
                   placeholder="Senha de acesso"
-                  autoFocus
+                  autoComplete="current-password"
+                  required
                 />
                 {loginError && (
-                  <p className="text-red-500 text-xs mt-2 pl-1">Senha incorreta. Tente novamente.</p>
+                  <p className="text-red-500 text-xs mt-2 pl-1">{loginError}</p>
                 )}
               </div>
-              
+
               <div className="flex gap-3 pt-2">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setShowLoginModal(false)}
                   className="flex-1 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition text-sm font-medium"
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition text-sm font-medium shadow-md"
+                  disabled={entrando}
+                  className="flex-1 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition text-sm font-medium shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Entrar
+                  {entrando ? 'Entrando...' : 'Entrar'}
                 </button>
               </div>
             </form>
