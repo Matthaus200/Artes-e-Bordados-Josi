@@ -9,15 +9,22 @@ interface ProductCardProps {
   onDelete?: (id: string) => void;
   isSelected?: boolean;
   onToggleSelect?: (product: Product) => void;
+  /** Abre a galeria. Só faz sentido quando o produto tem mais de uma foto. */
+  onAbrirGaleria?: (product: Product) => void;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ 
-  product, 
-  isAdmin, 
-  onDelete, 
-  isSelected, 
-  onToggleSelect 
+export const ProductCard: React.FC<ProductCardProps> = ({
+  product,
+  isAdmin,
+  onDelete,
+  isSelected,
+  onToggleSelect,
+  onAbrirGaleria
 }) => {
+  // A capa não está na subcoleção, então entra na conta separadamente: um
+  // produto com capa e uma foto extra já tem galeria para mostrar.
+  const totalFotos = (product.fotos ?? 0) + (product.imageUrl ? 1 : 0);
+  const temGaleria = totalFotos > 1 && Boolean(onAbrirGaleria);
   const handleContact = () => {
     const message = `Olá Josi! ❤️ Gostei muito do produto "${product.name}" (R$ ${product.price.toFixed(2)}) que vi no site. Gostaria de saber mais detalhes.`;
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
@@ -31,15 +38,30 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       }`}
     >
       <div className="h-48 overflow-hidden bg-gray-100 relative group">
-        <img 
-          src={product.imageUrl} 
-          alt={product.name} 
+        <img
+          src={product.imageUrl}
+          alt={product.name}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
         {product.category && (
           <span className="absolute top-2 left-2 bg-rose-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
             {product.category}
           </span>
+        )}
+
+        {/* A grade carrega só a capa. As outras fotos são buscadas ao abrir a
+            galeria, para a vitrine não puxar o álbum inteiro de cada produto. */}
+        {temGaleria && (
+          <button
+            type="button"
+            onClick={() => onAbrirGaleria?.(product)}
+            aria-label={`Ver as ${totalFotos} fotos de ${product.name}`}
+            className="absolute inset-0 flex items-end justify-end p-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-inset"
+          >
+            <span className="bg-black/55 text-white text-xs font-medium px-2.5 py-1 rounded-full backdrop-blur-sm">
+              {totalFotos} fotos
+            </span>
+          </button>
         )}
       </div>
       

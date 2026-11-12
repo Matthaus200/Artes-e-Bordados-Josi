@@ -1,9 +1,18 @@
-import React, { useState, useRef } from 'react';
-import { Product, Category } from '../types';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { Categoria, Foto, Product } from '../types';
 import { PlusIcon, TrashIcon, SearchIcon, EditIcon, CheckIcon, UploadIcon } from './Icons';
+import { CAPA, GALERIA, comprimirImagem } from '../services/imagem';
+import {
+  CATEGORIAS_PADRAO,
+  adicionarCategoria,
+  normalizar,
+  removerCategoria,
+} from '../services/categoryService';
+import { MAX_FOTOS, adicionarFoto, buscarFotos, removerFoto } from '../services/photoService';
 
 interface AdminPanelProps {
   products: Product[];
+  categorias: Categoria[];
   // Assíncronas porque agora gravam no Firestore, pela rede. Quem cria o id de
   // um produto novo é o banco, por isso o 'id' sai do que o formulário envia.
   onAddProduct: (product: Omit<Product, 'id'>) => Promise<void>;
@@ -12,7 +21,7 @@ interface AdminPanelProps {
   onLogout: () => void;
 }
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, onUpdateProduct, onDeleteProduct, onLogout }) => {
+export const AdminPanel: React.FC<AdminPanelProps> = ({ products, categorias, onAddProduct, onUpdateProduct, onDeleteProduct, onLogout }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [removendo, setRemovendo] = useState(false);
@@ -29,7 +38,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
     name: '',
     price: 0,
-    category: Category.OUTROS,
+    category: '',
     imageUrl: '',
     description: ''
   });
@@ -37,52 +46,147 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showUrlInput, setShowUrlInput] = useState(false);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // --- Categorias ---
+  const [novaCategoria, setNovaCategoria] = useState('');
+  const [salvandoCategoria, setSalvandoCategoria] = useState(false);
+
+  // --- Galeria do produto em edição ---
+  const [fotos, setFotos] = useState<Foto[]>([]);
+  const [carregandoFotos, setCarregandoFotos] = useState(false);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const inputGaleriaRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * Quantos produtos usam cada categoria. É o que impede excluir uma categoria
+   * em uso: como o produto guarda o NOME da categoria, apagá-la deixaria os
+   * produtos apontando para algo que não existe mais.
+   */
+  const usoPorCategoria = useMemo(() => {
+    const conta = new Map<string, number>();
+    for (const p of products) {
+      const chave = normalizar(p.category ?? '');
+      if (chave) conta.set(chave, (conta.get(chave) ?? 0) + 1);
+    }
+    return conta;
+  }, [products]);
+
+  /**
+   * Opções do seletor: as categorias cadastradas mais a do produto em edição,
+   * caso ela ainda não exista na lista. Sem isso, editar um produto antigo
+   * trocaria silenciosamente a categoria dele pela primeira da lista.
+   */
+  const opcoesDeCategoria = useMemo(() => {
+    const nomes = categorias.map((c) => c.nome);
+    const atual = newProduct.category;
+    if (atual && !nomes.some((n) => normalizar(n) === normalizar(atual))) {
+      return [atual, ...nomes];
+    }
+    return nomes;
+  }, [categorias, newProduct.category]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = ''; // permite reenviar o mesmo arquivo depois de um erro
 
-    if (!file.type.startsWith('image/')) {
-      alert('Por favor, selecione apenas arquivos de imagem.');
+    try {
+      const dataUrl = await comprimirImagem(file, CAPA);
+      setNewProduct(prev => ({ ...prev, imageUrl: dataUrl }));
+      setImageError(false);
+      setShowUrlInput(false);
+    } catch (erro) {
+      console.error('[Admin] Falha ao processar a capa:', erro);
+      setAviso({ tipo: 'erro', texto: (erro as Error).message });
+    }
+  };
+
+  /**
+   * Carrega a galeria do produto que entrou em edição. Fotos só existem para
+   * produto já salvo — um produto novo ainda não tem id para pendurá-las.
+   */
+  useEffect(() => {
+    if (!editingId) {
+      setFotos([]);
       return;
     }
-
-    // Read and compress image
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        
-        // Resize to max 800px to save space
-        const MAX_SIZE = 800;
-        if (width > height) {
-          if (width > MAX_SIZE) {
-            height *= MAX_SIZE / width;
-            width = MAX_SIZE;
-          }
-        } else {
-          if (height > MAX_SIZE) {
-            width *= MAX_SIZE / height;
-            height = MAX_SIZE;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-        
-        // Convert to optimized JPEG base64
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-        setNewProduct(prev => ({ ...prev, imageUrl: dataUrl }));
-        setImageError(false);
-        setShowUrlInput(false); // Hide URL input if active
-      };
-      img.src = event.target?.result as string;
+    let ativo = true;
+    setCarregandoFotos(true);
+    buscarFotos(editingId)
+      .then((lista) => ativo && setFotos(lista))
+      .catch((erro) => {
+        console.error('[Admin] Falha ao carregar fotos:', erro);
+        if (ativo) setFotos([]);
+      })
+      .finally(() => ativo && setCarregandoFotos(false));
+    return () => {
+      ativo = false;
     };
-    reader.readAsDataURL(file);
+  }, [editingId]);
+
+  const handleAdicionarFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const arquivos = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (arquivos.length === 0 || !editingId || enviandoFoto) return;
+
+    setEnviandoFoto(true);
+    setAviso(null);
+    try {
+      // Uma de cada vez: se a quarta falhar, as três primeiras já estão salvas.
+      for (const arquivo of arquivos) {
+        const dados = await comprimirImagem(arquivo, GALERIA);
+        await adicionarFoto(editingId, dados);
+      }
+      setFotos(await buscarFotos(editingId));
+      setAviso({ tipo: 'ok', texto: 'Fotos adicionadas.' });
+    } catch (erro) {
+      console.error('[Admin] Falha ao adicionar foto:', erro);
+      setFotos(await buscarFotos(editingId).catch(() => fotos));
+      setAviso({ tipo: 'erro', texto: (erro as Error).message });
+    } finally {
+      setEnviandoFoto(false);
+    }
+  };
+
+  const handleRemoverFoto = async (fotoId: string) => {
+    if (!editingId) return;
+    try {
+      await removerFoto(editingId, fotoId);
+      setFotos(await buscarFotos(editingId));
+    } catch (erro) {
+      console.error('[Admin] Falha ao remover foto:', erro);
+      setAviso({ tipo: 'erro', texto: 'Não foi possível remover a foto.' });
+    }
+  };
+
+  const handleCriarCategoria = async (nome: string) => {
+    if (salvandoCategoria) return;
+    setSalvandoCategoria(true);
+    setAviso(null);
+    try {
+      await adicionarCategoria(nome, categorias);
+      setNovaCategoria('');
+    } catch (erro) {
+      setAviso({ tipo: 'erro', texto: (erro as Error).message });
+    } finally {
+      setSalvandoCategoria(false);
+    }
+  };
+
+  const handleRemoverCategoria = async (cat: Categoria) => {
+    const emUso = usoPorCategoria.get(normalizar(cat.nome)) ?? 0;
+    if (emUso > 0) {
+      setAviso({
+        tipo: 'erro',
+        texto: `"${cat.nome}" está em ${emUso} produto${emUso > 1 ? 's' : ''}. Troque a categoria deles antes de excluir.`,
+      });
+      return;
+    }
+    try {
+      await removerCategoria(cat.id);
+    } catch (erro) {
+      console.error('[Admin] Falha ao remover categoria:', erro);
+      setAviso({ tipo: 'erro', texto: 'Não foi possível excluir a categoria.' });
+    }
   };
 
   const handleEditClick = (product: Product) => {
@@ -105,7 +209,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
     setNewProduct({
       name: '',
       price: 0,
-      category: Category.OUTROS,
+      category: '',
       imageUrl: '',
       description: ''
     });
@@ -121,7 +225,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
     const dados = {
       name: newProduct.name,
       price: Number(newProduct.price),
-      category: newProduct.category as Category,
+      category: newProduct.category ?? '',
       imageUrl: finalImage,
       description: newProduct.description || '',
     };
@@ -209,6 +313,90 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
         </div>
       )}
 
+      {/* Categorias */}
+      <div className="bg-white rounded-2xl border border-rose-100 shadow-sm p-5 md:p-6 mb-8">
+        <h2 className="font-serif text-xl font-semibold text-gray-900 mb-1">Categorias</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          São os filtros que aparecem para as clientes na vitrine.
+        </p>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleCriarCategoria(novaCategoria);
+          }}
+          className="flex flex-col sm:flex-row gap-2 mb-4"
+        >
+          <input
+            value={novaCategoria}
+            onChange={(e) => setNovaCategoria(e.target.value)}
+            maxLength={40}
+            placeholder="Ex.: Lembrancinhas"
+            className="flex-grow px-3 py-3 md:py-2 text-base md:text-sm bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none placeholder-gray-400"
+          />
+          <button
+            type="submit"
+            disabled={salvandoCategoria || !novaCategoria.trim()}
+            className="px-5 py-3 md:py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-bold shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {salvandoCategoria ? 'Criando...' : 'Criar'}
+          </button>
+        </form>
+
+        {categorias.length === 0 ? (
+          <div className="text-sm text-gray-600">
+            <p className="mb-3">Nenhuma categoria criada ainda.</p>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORIAS_PADRAO.map((nome) => (
+                <button
+                  key={nome}
+                  type="button"
+                  disabled={salvandoCategoria}
+                  onClick={() => handleCriarCategoria(nome)}
+                  className="px-3 py-1.5 text-sm rounded-full border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                >
+                  + {nome}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <ul className="flex flex-wrap gap-2">
+            {categorias.map((cat) => {
+              const emUso = usoPorCategoria.get(normalizar(cat.nome)) ?? 0;
+              return (
+                <li
+                  key={cat.id}
+                  className="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-full border border-gray-200 bg-gray-50"
+                >
+                  <span className="text-sm text-gray-800">{cat.nome}</span>
+                  <span className="text-xs text-gray-500">
+                    {emUso > 0 ? `${emUso} produto${emUso > 1 ? 's' : ''}` : 'sem uso'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoverCategoria(cat)}
+                    aria-label={`Excluir a categoria ${cat.nome}`}
+                    title={
+                      emUso > 0
+                        ? 'Em uso: troque a categoria dos produtos antes de excluir'
+                        : 'Excluir categoria'
+                    }
+                    className={`p-1 rounded-full transition-colors ${
+                      emUso > 0
+                        ? 'text-gray-300 cursor-not-allowed'
+                        : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                    }`}
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         
         {/* Left Column: Form (Sticky on Desktop only) */}
@@ -258,10 +446,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
                 <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
                 <select
                   value={newProduct.category}
-                  onChange={e => setNewProduct({...newProduct, category: e.target.value as Category})}
+                  onChange={e => setNewProduct({...newProduct, category: e.target.value})}
                   className="w-full px-3 py-3 md:py-2 text-base md:text-sm bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none"
+                  required
                 >
-                  {Object.values(Category).map(cat => (
+                  <option value="">
+                    {opcoesDeCategoria.length === 0 ? 'Crie uma categoria primeiro' : 'Escolha a categoria'}
+                  </option>
+                  {opcoesDeCategoria.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
@@ -331,6 +523,76 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ products, onAddProduct, 
                     placeholder="https://exemplo.com/imagem.jpg"
                   />
                 </div>
+              )}
+
+              {/* Este aviso existia como estado morto: o erro era registrado e
+                  nada o mostrava, então um link quebrado falhava em silêncio. */}
+              {imageError && (
+                <p className="mt-2 text-xs text-red-600">
+                  Não consegui carregar essa imagem. Confira o link ou envie a foto do aparelho.
+                </p>
+              )}
+            </div>
+
+            {/* Galeria: fotos extras do produto */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Mais fotos deste produto
+              </label>
+
+              {!editingId ? (
+                <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                  Salve o produto primeiro. Depois clique em editar para adicionar mais fotos.
+                </p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {carregandoFotos && (
+                      <span className="text-xs text-gray-500">Carregando fotos...</span>
+                    )}
+
+                    {!carregandoFotos && fotos.map((f) => (
+                      <div key={f.id} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
+                        <img src={f.dados} alt="" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoverFoto(f.id)}
+                          aria-label="Remover esta foto"
+                          className="absolute top-0.5 right-0.5 bg-black/60 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs leading-none"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+
+                    {!carregandoFotos && fotos.length < MAX_FOTOS && (
+                      <button
+                        type="button"
+                        onClick={() => inputGaleriaRef.current?.click()}
+                        disabled={enviandoFoto}
+                        className="w-20 h-20 rounded-lg border-2 border-dashed border-rose-200 text-rose-500 hover:bg-rose-50 flex flex-col items-center justify-center gap-1 disabled:opacity-60"
+                      >
+                        <UploadIcon className="w-5 h-5" />
+                        <span className="text-[10px] font-medium">
+                          {enviandoFoto ? 'Enviando' : 'Adicionar'}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    ref={inputGaleriaRef}
+                    onChange={handleAdicionarFoto}
+                    className="hidden"
+                  />
+
+                  <p className="text-xs text-gray-500">
+                    {fotos.length} de {MAX_FOTOS} fotos. Elas aparecem para a cliente ao tocar na imagem do produto.
+                  </p>
+                </>
               )}
             </div>
 

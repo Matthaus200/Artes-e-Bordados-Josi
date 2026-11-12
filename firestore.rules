@@ -40,12 +40,39 @@ service cloud.firestore {
           && d.imageUrl is string;
     }
 
+    // Uma categoria é só um nome. Validar o tamanho evita que um cliente
+    // comprometido grave um texto enorme que depois entope a vitrine.
+    function categoriaValida() {
+      let d = request.resource.data;
+      return d.nome is string && d.nome.size() > 0 && d.nome.size() <= 40;
+    }
+
     match /produtos/{produtoId} {
       // O catálogo é uma vitrine: qualquer visitante lê, e é isso que queremos.
       allow read: if true;
 
       allow create: if ehAdministradora() && produtoValido();
       allow update: if ehAdministradora() && produtoValido();
+      allow delete: if ehAdministradora();
+
+      // Fotos da galeria. Ficam em subcoleção para a vitrine não precisar
+      // baixar todas as fotos de todos os produtos só para montar a grade.
+      // Regra de subcoleção NÃO é herdada do documento pai: sem este bloco,
+      // a galeria cairia na negação geral do fim do arquivo e ninguém veria foto.
+      match /fotos/{fotoId} {
+        allow read: if true;
+        allow create, update: if ehAdministradora()
+                              && request.resource.data.dados is string
+                              && request.resource.data.dados.size() <= 900000;
+        allow delete: if ehAdministradora();
+      }
+    }
+
+    match /categorias/{categoriaId} {
+      // A vitrine monta os filtros a partir daqui, então leitura é pública.
+      allow read: if true;
+
+      allow create, update: if ehAdministradora() && categoriaValida();
       allow delete: if ehAdministradora();
     }
 

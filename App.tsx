@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { WHATSAPP_NUMBER } from './constants';
-import { Product, ViewState } from './types';
+import { Categoria, Product, ViewState } from './types';
 import { observarProdutos, adicionarProduto, atualizarProduto, removerProduto } from './services/productService';
+import { observarCategorias } from './services/categoryService';
 import { firebaseConfigurado } from './services/firebase';
 import { Storefront } from './components/Storefront';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
@@ -31,6 +32,7 @@ const DICA_ADMIN = 'josi_admin';
 function App() {
   const [view, setView] = useState<ViewState>('HOME');
   const [products, setProducts] = useState<Product[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [cart, setCart] = useState<Product[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erroCatalogo, setErroCatalogo] = useState<string | null>(null);
@@ -75,6 +77,18 @@ function App() {
     );
 
     return cancelar; // sem isto o listener sobrevive ao desmonte e segue gastando leituras
+  }, []);
+
+  /**
+   * Categorias, também em tempo real. Uma falha aqui não derruba a vitrine: sem
+   * categorias ela ainda mostra todos os produtos, só perde os botões de filtro.
+   */
+  useEffect(() => {
+    if (!firebaseConfigurado) return;
+    return observarCategorias(
+      (lista) => setCategorias(lista),
+      () => setCategorias([])
+    );
   }, []);
 
   const cancelarObservador = React.useRef<(() => void) | null>(null);
@@ -206,6 +220,7 @@ function App() {
           >
             <AdminPanel
               products={products}
+              categorias={categorias}
               onAddProduct={handleAddProduct}
               onUpdateProduct={handleUpdateProduct}
               onDeleteProduct={handleDeleteProduct}
@@ -240,6 +255,7 @@ function App() {
         return (
           <Storefront
             products={products}
+            categorias={categorias}
             cart={cart}
             onToggleCart={handleToggleCart}
           />

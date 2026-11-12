@@ -1,30 +1,7 @@
-import { Product, Category } from './types';
-
-export const INITIAL_PRODUCTS: Product[] = [
-  {
-    id: '2',
-    name: 'Caderno Personalizado Vintage',
-    description: 'Caderno A5 com capa dura encapada em tecido floral vintage e nome bordado a mão.',
-    price: 45.00,
-    category: Category.CADERNO,
-    imageUrl: 'https://picsum.photos/400/400?random=2'
-  },
-  {
-    id: '3',
-    name: 'Caneca "Melhor Mãe"',
-    description: 'Caneca de porcelana personalizada com arte exclusiva e nome. Ideal para presentes.',
-    price: 35.00,
-    category: Category.CANECA,
-    imageUrl: 'https://picsum.photos/400/400?random=3'
-  },
-  {
-    id: '4',
-    name: 'Bastidor Bordado Porta Maternidade',
-    description: 'Bastidor de 20cm com nome do bebê e elementos naturais bordados a mão.',
-    price: 120.00,
-    category: Category.BORDADO,
-    imageUrl: 'https://picsum.photos/400/400?random=4'
-  }
-];
+// Havia aqui uma lista INITIAL_PRODUCTS com três produtos de exemplo, usada
+// quando o catálogo vivia no localStorage. Depois da migração para o Firestore
+// ela ficou sem nenhum consumidor, e sobrevivia só por referenciar o enum
+// Category, que deixou de existir quando as categorias passaram a ser criadas
+// pela Josi no painel.
 
 export const WHATSAPP_NUMBER = "5547996444364";

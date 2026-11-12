@@ -1,5 +1,4 @@
 import React from 'react';
-import { WHATSAPP_NUMBER } from '../constants';
 
 export const PrivacyPolicy: React.FC = () => {
   return (

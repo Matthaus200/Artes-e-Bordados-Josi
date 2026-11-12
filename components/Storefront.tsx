@@ -1,20 +1,41 @@
-import React, { useState } from 'react';
-import { Product, Category } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Categoria, Product } from '../types';
 import { ProductCard } from './ProductCard';
+import { GaleriaProduto } from './GaleriaProduto';
 import { WhatsappIcon, ShoppingBagIcon } from './Icons';
 import { WHATSAPP_NUMBER } from '../constants';
 
 interface StorefrontProps {
   products: Product[];
+  categorias: Categoria[];
   cart: Product[];
   onToggleCart: (product: Product) => void;
 }
 
-export const Storefront: React.FC<StorefrontProps> = ({ products, cart, onToggleCart }) => {
-  const [selectedCategory, setSelectedCategory] = useState<Category | 'Todos'>('Todos');
+export const Storefront: React.FC<StorefrontProps> = ({ products, categorias, cart, onToggleCart }) => {
+  const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
+  const [produtoNaGaleria, setProdutoNaGaleria] = useState<Product | null>(null);
 
-  const filteredProducts = selectedCategory === 'Todos' 
-    ? products 
+  /**
+   * Os filtros saem da união entre as categorias cadastradas e as que os
+   * produtos realmente usam. A união importa porque o catálogo é anterior ao
+   * cadastro de categorias: sem ela, enquanto a Josi não criasse as categorias
+   * no painel, os produtos existentes ficariam sem nenhum filtro para chamá-los.
+   */
+  const categoriasVisiveis = useMemo(() => {
+    const nomes = new Map<string, string>();
+    for (const c of categorias) {
+      if (c.nome) nomes.set(c.nome.toLocaleLowerCase('pt-BR'), c.nome);
+    }
+    for (const p of products) {
+      const chave = p.category?.toLocaleLowerCase('pt-BR');
+      if (chave && !nomes.has(chave)) nomes.set(chave, p.category);
+    }
+    return [...nomes.values()].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [categorias, products]);
+
+  const filteredProducts = selectedCategory === 'Todos'
+    ? products
     : products.filter(p => p.category === selectedCategory);
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
@@ -70,7 +91,7 @@ export const Storefront: React.FC<StorefrontProps> = ({ products, cart, onToggle
           >
             Todos
           </button>
-          {Object.values(Category).map(cat => (
+          {categoriasVisiveis.map(cat => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
@@ -90,15 +111,23 @@ export const Storefront: React.FC<StorefrontProps> = ({ products, cart, onToggle
           {filteredProducts.map(product => {
             const isSelected = cart.some(item => item.id === product.id);
             return (
-              <ProductCard 
-                key={product.id} 
-                product={product} 
+              <ProductCard
+                key={product.id}
+                product={product}
                 isSelected={isSelected}
                 onToggleSelect={onToggleCart}
+                onAbrirGaleria={setProdutoNaGaleria}
               />
             );
           })}
         </div>
+
+        {produtoNaGaleria && (
+          <GaleriaProduto
+            produto={produtoNaGaleria}
+            onFechar={() => setProdutoNaGaleria(null)}
+          />
+        )}
         
         {filteredProducts.length === 0 && (
             <div className="text-center py-20 text-gray-500 bg-white/50 rounded-2xl border border-dashed border-gray-200">

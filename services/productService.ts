@@ -12,7 +12,8 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Category, Product } from '../types';
+import { Product } from '../types';
+import { removerTodasAsFotos } from './photoService';
 
 /**
  * Catálogo no Firestore.
@@ -35,8 +36,10 @@ function paraProduto(snap: QueryDocumentSnapshot<DocumentData>): Product {
     name: d.name ?? '',
     description: d.description ?? '',
     price: typeof d.price === 'number' ? d.price : Number(d.price) || 0,
-    category: (d.category as Category) ?? Category.OUTROS,
+    // Categoria é texto livre desde que ela passou a criar as próprias.
+    category: d.category ?? '',
     imageUrl: d.imageUrl ?? '',
+    fotos: typeof d.fotos === 'number' ? d.fotos : 0,
   };
 }
 
@@ -90,6 +93,9 @@ export async function atualizarProduto(produto: Product): Promise<void> {
 }
 
 export async function removerProduto(id: string): Promise<void> {
+  // A subcoleção precisa ir embora ANTES do documento: o Firestore não apaga
+  // subcoleções em cascata, e as fotos ficariam órfãs, invisíveis e ocupando cota.
+  await removerTodasAsFotos(id);
   await deleteDoc(doc(db, COLECAO, id));
 }
 
